@@ -1,19 +1,50 @@
+#!/usr/bin/env python3
+
 import cv2
 import sys
- 
-(major_ver, minor_ver, subminor_ver) = (cv2.__version__).split('.')
- 
-if __name__ == '__main__' :
- 
-    # Set up tracker.
-    # Instead of MIL, you can also use
- 
+from argparse import ArgumentParser
+
+if __name__ == "__main__":
+    (major_ver, minor_ver, _) = (cv2.__version__).split('.')
+    major_ver, minor_ver = int(major_ver), int(minor_ver)
+
     tracker_types = ['BOOSTING', 'MIL','KCF', 'TLD', 'MEDIANFLOW', 'GOTURN', 'MOSSE', 'CSRT']
-    tracker_type = tracker_types[2]
+    parser = ArgumentParser()
+    parser.add_argument("-t", "--tracker", default="CSRT", choices=tracker_types)
+    parser.add_argument("-s", "--source", default="videos/reverse.mp4")
+    parser.add_argument("-b", "--bbox", nargs="+", type=int)
+    args = parser.parse_args()
+
+    # tracker_type = args.tracker
+    args.bbox = [324, 89, 150, 24]
+    tracker_type = "COTRACKER3"
+    source_path = args.source
+    assert major_ver == 4, f"Only OpenCV 4.x.x supported, currently running {major_ver}.{minor_ver}.X."
+
+    # Read video
+    video = cv2.VideoCapture(source_path)
+    all_fps = []
+    # video = cv2.VideoCapture(0) # for using CAM
+
+    # Exit if video not opened.
+    if not video.isOpened():
+        print("Could not open video")
+        sys.exit()
  
-    if int(minor_ver) < 3:
-        tracker = cv2.Tracker_create(tracker_type)
+    # Read first frame.
+    ok, frame = video.read()
+    if not ok:
+        print ('Cannot read video file')
+        sys.exit()
+
+    if args.bbox is None:
+        bbox = cv2.selectROI(frame, False)
     else:
+        bbox = args.bbox
+ 
+    if minor_ver < 3:
+        tracker = cv2.Tracker_create(tracker_type)
+    elif minor_ver < 7:
         if tracker_type == 'BOOSTING':
             tracker = cv2.TrackerBoosting_create()
         elif tracker_type == 'MIL':
@@ -30,28 +61,27 @@ if __name__ == '__main__' :
             tracker = cv2.TrackerMOSSE_create()
         elif tracker_type == "CSRT":
             tracker = cv2.TrackerCSRT_create()
- 
-    # Read video
-    # video = cv2.VideoCapture("videos/video.mp4")
-    video = cv2.VideoCapture(0) # for using CAM
- 
-    # Exit if video not opened.
-    if not video.isOpened():
-        print("Could not open video")
-        sys.exit()
- 
-    # Read first frame.
-    ok, frame = video.read()
-    if not ok:
-        print ('Cannot read video file')
-        sys.exit()
+    else:
+        if tracker_type == 'BOOSTING':
+            tracker = cv2.legacy.TrackerBoosting_create()
+        elif tracker_type == 'MIL':
+            tracker = cv2.legacy.TrackerMIL_create()
+        elif tracker_type == 'KCF':
+            tracker = cv2.legacy.TrackerKCF_create()
+        elif tracker_type == 'TLD':
+            tracker = cv2.legacy.TrackerTLD_create()
+        elif tracker_type == 'MEDIANFLOW':
+            tracker = cv2.legacy.TrackerMedianFlow_create()
+        # elif tracker_type == 'GOTURN':
+        #     tracker = cv2.TrackerGOTURN_create()
+        elif tracker_type == 'MOSSE':
+            tracker = cv2.legacy.TrackerMOSSE_create()
+        elif tracker_type == "CSRT":
+            tracker = cv2.legacy.TrackerCSRT_create()
+        elif tracker_type == "COTRACKER3":
+            import custom_trackers.cotracker
+            tracker = custom_trackers.cotracker.CoTracker3(video, bbox)
      
-    # Define an initial bounding box
-    bbox = (287, 23, 86, 320)
- 
-    # Uncomment the line below to select a different bounding box
-    bbox = cv2.selectROI(frame, False)
- 
     # Initialize tracker with first frame and bounding box
     ok = tracker.init(frame, bbox)
  
@@ -69,6 +99,7 @@ if __name__ == '__main__' :
  
         # Calculate Frames per second (FPS)
         fps = cv2.getTickFrequency() / (cv2.getTickCount() - timer);
+        all_fps.append(fps)
  
         # Draw bounding box
         if ok:
@@ -76,9 +107,14 @@ if __name__ == '__main__' :
             p1 = (int(bbox[0]), int(bbox[1]))
             p2 = (int(bbox[0] + bbox[2]), int(bbox[1] + bbox[3]))
             cv2.rectangle(frame, p1, p2, (255,0,0), 2, 1)
+            crosshair_size = int(min([bbox[2], bbox[3]])*0.1)
+            crosshair_center = (int(bbox[0] + bbox[2]/2), int(bbox[1]+bbox[3]/2))
+            cv2.line(frame, (int(crosshair_center[0]-crosshair_size/2), crosshair_center[1]), (int(crosshair_center[0]+crosshair_size/2), crosshair_center[1]), (255,0,0),2)
+            cv2.line(frame, (crosshair_center[0], int(crosshair_center[1]-crosshair_size/2)), (crosshair_center[0], int(crosshair_center[1]+crosshair_size/2)), (255,0,0),2)
         else :
             # Tracking failure
             cv2.putText(frame, "Tracking failure detected", (100,80), cv2.FONT_HERSHEY_SIMPLEX, 0.75,(0,0,255),2)
+            crosshair_center = None
  
         # Display tracker type on frame
         cv2.putText(frame, tracker_type + " Tracker", (100,20), cv2.FONT_HERSHEY_SIMPLEX, 0.75, (50,170,50),2);
@@ -94,3 +130,11 @@ if __name__ == '__main__' :
             break
     video.release()
     cv2.destroyAllWindows()
+    mean_fps = sum(all_fps)/len(all_fps)
+    exit_code = 0
+    if crosshair_center is None:
+        crosshair_center = [-1 -1]
+        exit_code = 1
+
+    sys.stdout.write(f"{mean_fps} {crosshair_center[0]} {crosshair_center[1]}")
+    exit(exit_code)
