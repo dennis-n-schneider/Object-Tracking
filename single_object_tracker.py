@@ -11,14 +11,15 @@ if __name__ == "__main__":
     tracker_types = ['BOOSTING', 'MIL','KCF', 'TLD', 'MEDIANFLOW', 'GOTURN', 'MOSSE', 'CSRT']
     parser = ArgumentParser()
     parser.add_argument("-t", "--tracker", default="CSRT", choices=tracker_types)
-    parser.add_argument("-s", "--source", default="videos/reverse.mp4")
+    parser.add_argument("-i", "--input", default="videos/reverse.mp4")
     parser.add_argument("-b", "--bbox", nargs="+", type=int)
+    parser.add_argument("-s", "--skip_frames", default=0, type=int)
     args = parser.parse_args()
 
     # tracker_type = args.tracker
-    args.bbox = [324, 89, 150, 24]
+    args.bbox = [324, 89, 150, 124]
     tracker_type = "COTRACKER3"
-    source_path = args.source
+    source_path = args.input
     assert major_ver == 4, f"Only OpenCV 4.x.x supported, currently running {major_ver}.{minor_ver}.X."
 
     # Read video
@@ -33,6 +34,8 @@ if __name__ == "__main__":
  
     # Read first frame.
     ok, frame = video.read()
+    for _ in range(args.skip_frames):
+        ok, frame = video.read()
     if not ok:
         print ('Cannot read video file')
         sys.exit()
