@@ -46,6 +46,7 @@ def output_results(results, interactive):
     if WITH_L2:
         table.add_column("L2", [])
     table.add_rows(results)
+    table.float_format = "0.2"
     return table.get_string(sortby="L2" if WITH_L2 else "FPS")
 
 

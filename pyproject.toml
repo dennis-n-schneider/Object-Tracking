@@ -1,0 +1,19 @@
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ruler"
+version = "0.1.0"
+authors = [
+    {name = "Dennis N. Schneider"}
+]
+description = ""
+readme = "README.md"
+requires-python = ">=3.9"
+dependencies = [
+]
+
+[project.scripts]
+ruler = "src.main:main"
+

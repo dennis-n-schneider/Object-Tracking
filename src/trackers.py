@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 
 import sys
-import time
 
 import cv2
+import numpy as np
 
-import visualize
+from . import visualize
 
 ALL = ['BOOSTING', 'MIL','KCF', 'TLD', 'MEDIANFLOW', 'MOSSE', 'CSRT', 'COTRACKER3']
 
@@ -27,8 +27,8 @@ def select(tracker_type, pretrained_path):
     elif tracker_type == "CSRT":
         tracker = cv2.legacy.TrackerCSRT_create()
     elif tracker_type == "COTRACKER3":
-        import custom_trackers.cotracker
-        tracker = custom_trackers.cotracker.CoTracker3()
+        from .custom_trackers import cotracker
+        tracker = cotracker.CoTracker3()
     elif tracker_type == "FasterRCNN":
         # TODO: load model-weights from `pretrained_path`.
         tracker = ...
@@ -39,7 +39,7 @@ def select(tracker_type, pretrained_path):
     return tracker
 
 
-def run(tracker, video, first_frame_id, bbox, interactive=True):
+def run(tracker, video, first_frame_id, bbox, interactive):
     tracker_type = type(tracker).__name__
     video.set(cv2.CAP_PROP_POS_FRAMES, first_frame_id)
     _, first_frame = video.read()
@@ -47,9 +47,9 @@ def run(tracker, video, first_frame_id, bbox, interactive=True):
         ok = tracker.init(first_frame, bbox)
     except:
         ok = tracker.init(video, bbox)
+        video.set(cv2.CAP_PROP_POS_FRAMES, first_frame_id)
     crosshair_center = None
     all_fps = []
-    video.set(cv2.CAP_PROP_POS_FRAMES, first_frame_id)
     while True:
         ok, frame = video.read()
         if not ok:
@@ -73,6 +73,7 @@ def run(tracker, video, first_frame_id, bbox, interactive=True):
         processing_time = cv2.getTickCount() - fps_timer
         wait_time = int((expected_time-processing_time)/1000)
         visualize.interactive_display(frame, wait_time)
+    assert len(all_fps) > 0, "Video could not be read again."
     video.release()
     cv2.destroyAllWindows()
     mean_fps = sum(all_fps)/len(all_fps)

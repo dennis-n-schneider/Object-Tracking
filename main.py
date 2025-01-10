@@ -1,17 +1,14 @@
 #!/usr/bin/env python3
 
-import sys
 import os
+import sys
 from argparse import ArgumentParser
 from stat import S_ISFIFO
-import cv2
 
+import cv2
 import numpy as np
 
-import datasets
-import trackers
-import visualize
-import vutils
+from src import datasets, trackers, visualize, vutils
 
 
 def _is_interactive(
@@ -44,8 +41,8 @@ if __name__ == "__main__":
     parser.add_argument("--interactive", action="store_true")
     parser.add_argument("--noninteractive", action="store_true")
     args = parser.parse_args()
-    assert args.tracker or args.all
-    assert args.input or args.dataset
+    assert args.tracker or args.all, parser.print_help()
+    assert args.input or args.dataset, parser.print_help()
 
     interactive = _is_interactive(
         args.all,
@@ -75,12 +72,13 @@ if __name__ == "__main__":
 
     if bbox is None:
         bbox = cv2.selectROI(frame, showCrosshair=True, fromCenter=True)
-        print(f"Used bbox: {" ".join(map(str, bbox))}")
+        print(f"Used bbox: {' '.join(map(str, bbox))}")
     if not interactive:
         cv2.destroyAllWindows()
 
     exit_code = 0
     combined_results = []
+    print(tracker_types)
     for tracker_type in tracker_types:
         tracker = trackers.select(tracker_type, pretrained_path)
         if tracker is not None:
